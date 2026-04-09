@@ -75,6 +75,7 @@ export default function ListaScreen({ navegar }: Props) {
     setModalSubstVisible(true);
   };
 
+  
   const handleSubstituir = (jogadorEntra: Jogador) => {
     if (!jogadorSelecionado) return;
     if (confirmar(`Trocar "${jogadorSelecionado.nome}" por "${jogadorEntra.nome}"?`)) {
