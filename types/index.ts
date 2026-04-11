@@ -29,7 +29,34 @@ export interface RankingTime {
 export interface PeladaState {
   iniciada: boolean;
   jogadoresPorTime: number;
-  fila: Time[]; // todos os times na fila
-  timeEmQuadra1: Time | null; // time A jogando
-  timeEmQuadra2: Time | null; // time B jogando
+  fila: Time[];
+  timeEmQuadra1: Time | null;
+  timeEmQuadra2: Time | null;
+}
+
+// ─── Modo Campeonato ───────────────────────────────────────
+
+export interface TimeCampeonato {
+  id: string;
+  nome: string;
+  jogadores: Jogador[];
+}
+
+export interface Confronto {
+  id: string;
+  timeA: TimeCampeonato;
+  timeB: TimeCampeonato;
+  placarA: number | null;
+  placarB: number | null;
+  vencedorId: string | null;
+  fase: 'grupo' | 'semi' | 'terceiro' | 'final';
+}
+
+export interface Campeonato {
+  id: string;
+  nome: string;
+  times: TimeCampeonato[];
+  confrontos: Confronto[];
+  fase: 'grupo' | 'eliminatorio' | 'encerrado';
+  criadoEm: number;
 }

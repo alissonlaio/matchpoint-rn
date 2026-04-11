@@ -26,6 +26,9 @@ export default function HomeScreen({ navegar }: Props) {
   const [qtdJogadores, setQtdJogadores] = useState('');
   const [qtdEditar, setQtdEditar] = useState('');
   const { jogadores, adicionarJogador, peladaIniciada, iniciarPelada, remontarTimes } = useStore();
+  const logoSource = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+  ? { uri: '/matchpoint-rn/assets/assets/logo.297edb7f6fe1e047f1aa19e855342bf2.png' }
+  : require('../assets/logo.png');
 
   const handleAdicionarJogador = () => {
     if (!nome.trim()) {
@@ -90,7 +93,7 @@ export default function HomeScreen({ navegar }: Props) {
 
       <View style={styles.logoContainer}>
         <Image
-          source={require('../assets/logo.png')}
+          source={logoSource}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -130,6 +133,13 @@ export default function HomeScreen({ navegar }: Props) {
         <Text style={styles.btnPeladaText}>
           {peladaIniciada ? '▶  Continuar Pelada' : '⚽  Iniciar Pelada'}
         </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.btnCampeonato}
+        onPress={() => navegar('campeonato')}
+      >
+        <Text style={styles.btnCampeonatoText}>🏆  Modo Campeonato</Text>
       </TouchableOpacity>
 
       {/* Modal iniciar pelada */}
@@ -227,9 +237,14 @@ const styles = StyleSheet.create({
   btnEditarTimeText: { color: '#3b82f6', fontWeight: 'bold', fontSize: 16 },
   btnPelada: {
     borderRadius: 10, marginHorizontal: 16, paddingVertical: 16,
-    alignItems: 'center', borderWidth: 2, borderColor: '#f5a623',
+    alignItems: 'center', borderWidth: 2, borderColor: '#f5a623', marginBottom: 12,
   },
   btnPeladaText: { color: '#f5a623', fontWeight: 'bold', fontSize: 16 },
+  btnCampeonato: {
+    borderRadius: 10, marginHorizontal: 16, paddingVertical: 16,
+    alignItems: 'center', borderWidth: 2, borderColor: '#a855f7',
+  },
+  btnCampeonatoText: { color: '#a855f7', fontWeight: 'bold', fontSize: 16 },
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center', alignItems: 'center',
