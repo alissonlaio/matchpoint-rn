@@ -68,12 +68,19 @@ function atualizarRankingJogadores(ranking: RankingJogador[], vencedores: Jogado
 }
 
 function atualizarRankingTimes(rankingTimes: RankingTime[], vencedor: Time): RankingTime[] {
-  const existente = rankingTimes.find((r) => r.timeId === vencedor.id);
+  const idsVencedor = vencedor.jogadores.map(j => j.id).sort().join('|');
+
+  const existente = rankingTimes.find((r) =>
+    r.jogadores.map(j => j.id).sort().join('|') === idsVencedor
+  );
+
   if (existente) {
-    return rankingTimes.map((r) =>
-      r.timeId === vencedor.id ? { ...r, vitorias: r.vitorias + 1 } : r
-    );
+    return rankingTimes.map((r) => {
+      const mesmaComposicao = r.jogadores.map(j => j.id).sort().join('|') === idsVencedor;
+      return mesmaComposicao ? { ...r, vitorias: r.vitorias + 1 } : r;
+    });
   }
+
   return [...rankingTimes, {
     timeId: vencedor.id,
     numero: vencedor.numero,
@@ -167,82 +174,79 @@ export const useStore = create<StoreState>((set, get) => ({
     });
   },
 
-editarJogador: (id, novoNome) => {
-  set((s) => {
-    const jogadores = s.jogadores.map((j) => j.id === id ? { ...j, nome: novoNome } : j);
-    const rankingJogadores = s.rankingJogadores.map((r) => r.id === id ? { ...r, nome: novoNome } : r);
+  editarJogador: (id, novoNome) => {
+    set((s) => {
+      const jogadores = s.jogadores.map((j) => j.id === id ? { ...j, nome: novoNome } : j);
+      const rankingJogadores = s.rankingJogadores.map((r) => r.id === id ? { ...r, nome: novoNome } : r);
 
-    // Atualiza o nome nos times também
-    const atualizarNomeNoTime = (t: Time | null): Time | null => {
-      if (!t) return null;
-      return {
-        ...t,
-        jogadores: t.jogadores.map(j => j.id === id ? { ...j, nome: novoNome } : j),
+      const atualizarNomeNoTime = (t: Time | null): Time | null => {
+        if (!t) return null;
+        return {
+          ...t,
+          jogadores: t.jogadores.map(j => j.id === id ? { ...j, nome: novoNome } : j),
+        };
       };
-    };
 
-    const newState = {
-      jogadores,
-      rankingJogadores,
-      timeEmQuadra1: atualizarNomeNoTime(s.timeEmQuadra1),
-      timeEmQuadra2: atualizarNomeNoTime(s.timeEmQuadra2),
-      fila: s.fila.map(t => atualizarNomeNoTime(t) as Time),
-    };
-    salvar(newState);
-    return newState;
-  });
-},
+      const newState = {
+        jogadores,
+        rankingJogadores,
+        timeEmQuadra1: atualizarNomeNoTime(s.timeEmQuadra1),
+        timeEmQuadra2: atualizarNomeNoTime(s.timeEmQuadra2),
+        fila: s.fila.map(t => atualizarNomeNoTime(t) as Time),
+      };
+      salvar(newState);
+      return newState;
+    });
+  },
 
-removerJogador: (id) => {
-  set((s) => {
-    const jogadores = s.jogadores.filter((j) => j.id !== id);
+  removerJogador: (id) => {
+    set((s) => {
+      const jogadores = s.jogadores.filter((j) => j.id !== id);
 
-    if (!s.peladaIniciada) {
-      salvar({ jogadores });
-      return { jogadores };
-    }
-
-    // Remove o jogador de todos os times
-    const filaCongelado = s.fila.filter(t => t.congelado);
-    const filaSemCongelado = s.fila.filter(t => !t.congelado).map(t => ({
-      ...t,
-      jogadores: t.jogadores.filter(j => j.id !== id),
-    }));
-
-    const t1 = s.timeEmQuadra1 ? {
-      ...s.timeEmQuadra1,
-      jogadores: s.timeEmQuadra1.jogadores.filter(j => j.id !== id),
-    } : null;
-
-    const t2 = s.timeEmQuadra2 ? {
-      ...s.timeEmQuadra2,
-      jogadores: s.timeEmQuadra2.jogadores.filter(j => j.id !== id),
-    } : null;
-
-    // Pega todos os jogadores da fila em ordem e redistribui
-    const todosJogadores: Jogador[] = [];
-    filaSemCongelado.forEach(t => todosJogadores.push(...t.jogadores));
-
-    const novaFila: Time[] = [];
-    for (let i = 0; i < filaSemCongelado.length; i++) {
-      const grupo = todosJogadores.slice(i * s.jogadoresPorTime, (i + 1) * s.jogadoresPorTime);
-      if (grupo.length > 0) {
-        novaFila.push({ ...filaSemCongelado[i], jogadores: grupo });
+      if (!s.peladaIniciada) {
+        salvar({ jogadores });
+        return { jogadores };
       }
-    }
 
-    const filaFinal = [...filaCongelado, ...novaFila];
+      const filaCongelado = s.fila.filter(t => t.congelado);
+      const filaSemCongelado = s.fila.filter(t => !t.congelado).map(t => ({
+        ...t,
+        jogadores: t.jogadores.filter(j => j.id !== id),
+      }));
 
-    const newState = {
-      jogadores,
-      timeEmQuadra1: t1,
-      timeEmQuadra2: t2,
-      fila: filaFinal,
-    };
-    salvar(newState);
-    return newState;
-  });
-},
+      const t1 = s.timeEmQuadra1 ? {
+        ...s.timeEmQuadra1,
+        jogadores: s.timeEmQuadra1.jogadores.filter(j => j.id !== id),
+      } : null;
+
+      const t2 = s.timeEmQuadra2 ? {
+        ...s.timeEmQuadra2,
+        jogadores: s.timeEmQuadra2.jogadores.filter(j => j.id !== id),
+      } : null;
+
+      const todosJogadores: Jogador[] = [];
+      filaSemCongelado.forEach(t => todosJogadores.push(...t.jogadores));
+
+      const novaFila: Time[] = [];
+      for (let i = 0; i < filaSemCongelado.length; i++) {
+        const grupo = todosJogadores.slice(i * s.jogadoresPorTime, (i + 1) * s.jogadoresPorTime);
+        if (grupo.length > 0) {
+          novaFila.push({ ...filaSemCongelado[i], jogadores: grupo });
+        }
+      }
+
+      const filaFinal = [...filaCongelado, ...novaFila];
+
+      const newState = {
+        jogadores,
+        timeEmQuadra1: t1,
+        timeEmQuadra2: t2,
+        fila: filaFinal,
+      };
+      salvar(newState);
+      return newState;
+    });
+  },
 
   iniciarPelada: (jogadoresPorTime) => {
     const { jogadores } = get();
@@ -320,13 +324,16 @@ removerJogador: (id) => {
         ? vencedor.vitoriasSeguidas + 1
         : 0;
 
+      // ✅ Novo id a cada vitória
       const vencedorAtualizado: Time = {
         ...vencedor,
+        id: gerarId(),
         vitorias: vencedor.vitorias + 1,
         vitoriasSeguidas: novasVitoriasSeguidas,
         congelado: false,
       };
 
+      // ✅ Ranking busca por composição de jogadores
       const rankingTimes = atualizarRankingTimes(s.rankingTimes, vencedorAtualizado);
 
       const filaOriginal = [...s.fila];
@@ -399,7 +406,11 @@ removerJogador: (id) => {
       const atualizarTime = (t: Time | null): Time | null => {
         if (!t || t.id !== timeId) return t;
         return {
-          ...t, id: gerarId(), vitorias: 0, vitoriasSeguidas: 0, congelado: false,
+          ...t,
+          id: gerarId(),
+          vitorias: 0,
+          vitoriasSeguidas: 0,
+          congelado: t.congelado, // ✅ preserva o estado congelado
           jogadores: t.jogadores.map((j) => j.id === jogadorSaiId ? jogadorEntra : j),
         };
       };
@@ -438,82 +449,79 @@ removerJogador: (id) => {
     });
   },
 
-moverJogadorParaFilaComSubstituto: (timeId, jogadorId) => {
-  set((s) => {
-    const filaSemCongelado = s.fila.filter(t => !t.congelado);
-    const filaCongelado = s.fila.filter(t => t.congelado);
+  moverJogadorParaFilaComSubstituto: (timeId, jogadorId) => {
+    set((s) => {
+      const filaSemCongelado = s.fila.filter(t => !t.congelado);
+      const filaCongelado = s.fila.filter(t => t.congelado);
 
-    const terceiroTime = filaSemCongelado[0];
-    if (!terceiroTime || terceiroTime.jogadores.length === 0) return s;
+      const terceiroTime = filaSemCongelado[0];
+      if (!terceiroTime || terceiroTime.jogadores.length === 0) return s;
 
-    const substituto = terceiroTime.jogadores[0];
-    const jogadorSai = s.jogadores.find(j => j.id === jogadorId);
-    if (!jogadorSai) return s;
+      const substituto = terceiroTime.jogadores[0];
+      const jogadorSai = s.jogadores.find(j => j.id === jogadorId);
+      if (!jogadorSai) return s;
 
-    const atualizarTime = (t: Time | null): Time | null => {
-      if (!t || t.id !== timeId) return t;
-      return {
-        ...t,
-        id: gerarId(),
-        vitorias: 0,
-        vitoriasSeguidas: 0,
-        congelado: false,
-        jogadores: t.jogadores.map((j) => j.id === jogadorId ? substituto : j),
+      const atualizarTime = (t: Time | null): Time | null => {
+        if (!t || t.id !== timeId) return t;
+        return {
+          ...t,
+          id: gerarId(),
+          vitorias: 0,
+          vitoriasSeguidas: 0,
+          congelado: false,
+          jogadores: t.jogadores.map((j) => j.id === jogadorId ? substituto : j),
+        };
       };
-    };
 
-    // Pega todos os jogadores da fila em ordem (sem o substituto)
-    const todosJogadores: Jogador[] = [];
-    filaSemCongelado.forEach(t => {
-      t.jogadores.forEach(j => {
-        if (j.id !== substituto.id) todosJogadores.push(j);
+      const todosJogadores: Jogador[] = [];
+      filaSemCongelado.forEach(t => {
+        t.jogadores.forEach(j => {
+          if (j.id !== substituto.id) todosJogadores.push(j);
+        });
       });
-    });
 
-    // Adiciona o jogador que saiu no final
-    todosJogadores.push(jogadorSai);
+      todosJogadores.push(jogadorSai);
 
-    // Redistribui em grupos de jogadoresPorTime
-    const novaFila: Time[] = [];
-    for (let i = 0; i < filaSemCongelado.length; i++) {
-      const grupo = todosJogadores.slice(i * s.jogadoresPorTime, (i + 1) * s.jogadoresPorTime);
-      if (grupo.length > 0) {
+      const novaFila: Time[] = [];
+      for (let i = 0; i < filaSemCongelado.length; i++) {
+        const grupo = todosJogadores.slice(i * s.jogadoresPorTime, (i + 1) * s.jogadoresPorTime);
+        if (grupo.length > 0) {
+          novaFila.push({
+            ...filaSemCongelado[i],
+            jogadores: grupo,
+          });
+        }
+      }
+
+      const sobras = todosJogadores.slice(filaSemCongelado.length * s.jogadoresPorTime);
+      if (sobras.length > 0) {
+        const proximoNumero = Math.max(
+          ...novaFila.map(t => t.numero),
+          s.timeEmQuadra1?.numero || 0,
+          s.timeEmQuadra2?.numero || 0,
+        ) + 1;
         novaFila.push({
-          ...filaSemCongelado[i],
-          jogadores: grupo,
+          id: gerarId(),
+          numero: proximoNumero,
+          jogadores: sobras,
+          vitorias: 0,
+          vitoriasSeguidas: 0,
+          congelado: false,
         });
       }
-    }
 
-    // Se sobrar jogadores, cria novo time
-    const sobras = todosJogadores.slice(filaSemCongelado.length * s.jogadoresPorTime);
-    if (sobras.length > 0) {
-      const proximoNumero = Math.max(
-        ...novaFila.map(t => t.numero),
-        s.timeEmQuadra1?.numero || 0,
-        s.timeEmQuadra2?.numero || 0,
-      ) + 1;
-      novaFila.push({
-        id: gerarId(),
-        numero: proximoNumero,
-        jogadores: sobras,
-        vitorias: 0,
-        vitoriasSeguidas: 0,
-        congelado: false,
-      });
-    }
+      const filaFinal = [...filaCongelado, ...novaFila];
 
-    const filaFinal = [...filaCongelado, ...novaFila];
+      const newState = {
+        timeEmQuadra1: atualizarTime(s.timeEmQuadra1),
+        timeEmQuadra2: atualizarTime(s.timeEmQuadra2),
+        fila: filaFinal,
+      };
+      salvar(newState);
+      return newState;
+    });
+  },
 
-    const newState = {
-      timeEmQuadra1: atualizarTime(s.timeEmQuadra1),
-      timeEmQuadra2: atualizarTime(s.timeEmQuadra2),
-      fila: filaFinal,
-    };
-    salvar(newState);
-    return newState;
-  });
-},
   encerrarPelada: () => {
     const newState = {
       peladaIniciada: false,
