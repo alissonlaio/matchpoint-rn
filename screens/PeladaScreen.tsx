@@ -15,6 +15,7 @@ export default function PeladaScreen({ navegar }: Props) {
   const {
     timeEmQuadra1, timeEmQuadra2, fila,
     registrarVitoria, encerrarPelada,
+    desfazerUltimaVitoria, snapshotAnterior, // ✅ novo
   } = useStore();
 
   const handleVitoria = (time: Time) => {
@@ -29,6 +30,23 @@ export default function PeladaScreen({ navegar }: Props) {
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Confirmar', onPress: () => registrarVitoria(time.id) },
+        ]
+      );
+    }
+  };
+
+  const handleDesfazer = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Desfazer a última vitória registrada?')) {
+        desfazerUltimaVitoria();
+      }
+    } else {
+      Alert.alert(
+        'Desfazer Vitória',
+        'Desfazer a última vitória registrada?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Desfazer', style: 'destructive', onPress: () => desfazerUltimaVitoria() },
         ]
       );
     }
@@ -107,6 +125,13 @@ export default function PeladaScreen({ navegar }: Props) {
         </View>
 
         {timeEmQuadra2 && renderTime(timeEmQuadra2, 'Time B')}
+
+        {/* ✅ Botão desfazer — só aparece se houver snapshot */}
+        {snapshotAnterior && (
+          <TouchableOpacity style={styles.btnDesfazer} onPress={handleDesfazer}>
+            <Text style={styles.btnDesfazerText}>↩️ Desfazer última vitória</Text>
+          </TouchableOpacity>
+        )}
 
         {fila.length > 0 && (
           <>
@@ -213,6 +238,13 @@ const styles = StyleSheet.create({
   btnVitoriaText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   vsContainer: { alignItems: 'center', marginVertical: 8 },
   vsText: { color: '#f5a623', fontWeight: 'bold', fontSize: 24 },
+  // ✅ estilo do botão desfazer
+  btnDesfazer: {
+    backgroundColor: 'transparent', borderWidth: 2,
+    borderColor: '#f59e0b', borderRadius: 10,
+    paddingVertical: 12, alignItems: 'center', marginTop: 12,
+  },
+  btnDesfazerText: { color: '#f59e0b', fontWeight: 'bold', fontSize: 15 },
   filaCard: {
     backgroundColor: '#0d1f3c', borderRadius: 10,
     borderWidth: 1, borderColor: '#1e3a5f',

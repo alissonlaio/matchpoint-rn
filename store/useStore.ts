@@ -10,6 +10,7 @@ interface StoreState {
   timeEmQuadra2: Time | null;
   rankingJogadores: RankingJogador[];
   rankingTimes: RankingTime[];
+  snapshotAnterior: Partial<StoreState> | null; // ✅ snapshot da última jogada
 
   adicionarJogador: (nome: string) => void;
   editarJogador: (id: string, novoNome: string) => void;
@@ -17,6 +18,7 @@ interface StoreState {
   iniciarPelada: (jogadoresPorTime: number) => void;
   remontarTimes: (jogadoresPorTime: number) => void;
   registrarVitoria: (timeVencedorId: string) => void;
+  desfazerUltimaVitoria: () => void; // ✅ nova função
   substituirJogador: (timeId: string, jogadorSaiId: string, jogadorEntraId: string) => void;
   moverJogadorParaFila: (timeId: string, jogadorId: string) => void;
   moverJogadorParaFilaComSubstituto: (timeId: string, jogadorId: string) => void;
@@ -34,7 +36,7 @@ function salvar(state: Partial<StoreState>) {
     const { adicionarJogador, editarJogador, removerJogador,
       iniciarPelada, remontarTimes, registrarVitoria, substituirJogador,
       moverJogadorParaFila, moverJogadorParaFilaComSubstituto,
-      encerrarPelada, ...dados } = novo as any;
+      encerrarPelada, desfazerUltimaVitoria, ...dados } = novo as any;
     localStorage.setItem('matchpoint-storage', JSON.stringify(dados));
   } catch (e) {}
 }
@@ -131,6 +133,7 @@ export const useStore = create<StoreState>((set, get) => ({
   timeEmQuadra2: dadosSalvos.timeEmQuadra2 || null,
   rankingJogadores: dadosSalvos.rankingJogadores || [],
   rankingTimes: dadosSalvos.rankingTimes || [],
+  snapshotAnterior: dadosSalvos.snapshotAnterior || null,
 
   adicionarJogador: (nome) => {
     const novoJogador: Jogador = { id: gerarId(), nome, vitorias: 0 };
@@ -274,6 +277,7 @@ export const useStore = create<StoreState>((set, get) => ({
       fila: times.slice(2),
       rankingJogadores,
       rankingTimes: [] as RankingTime[],
+      snapshotAnterior: null,
     };
     salvar(newState);
     set(newState);
@@ -303,6 +307,7 @@ export const useStore = create<StoreState>((set, get) => ({
       fila: times.slice(2),
       rankingTimes: [] as RankingTime[],
       rankingJogadores,
+      snapshotAnterior: null,
     };
     salvar(newState);
     set(newState);
@@ -310,6 +315,15 @@ export const useStore = create<StoreState>((set, get) => ({
 
   registrarVitoria: (timeVencedorId) => {
     set((s) => {
+      // ✅ Salva snapshot do estado atual antes de registrar a vitória
+      const snapshot = {
+        timeEmQuadra1: s.timeEmQuadra1,
+        timeEmQuadra2: s.timeEmQuadra2,
+        fila: s.fila,
+        rankingJogadores: s.rankingJogadores,
+        rankingTimes: s.rankingTimes,
+      };
+
       const t1 = s.timeEmQuadra1!;
       const t2 = s.timeEmQuadra2!;
       const vencedor = t1.id === timeVencedorId ? t1 : t2;
@@ -324,7 +338,6 @@ export const useStore = create<StoreState>((set, get) => ({
         ? vencedor.vitoriasSeguidas + 1
         : 0;
 
-      // ✅ Novo id a cada vitória
       const vencedorAtualizado: Time = {
         ...vencedor,
         id: gerarId(),
@@ -333,7 +346,6 @@ export const useStore = create<StoreState>((set, get) => ({
         congelado: false,
       };
 
-      // ✅ Ranking busca por composição de jogadores
       const rankingTimes = atualizarRankingTimes(s.rankingTimes, vencedorAtualizado);
 
       const filaOriginal = [...s.fila];
@@ -393,6 +405,21 @@ export const useStore = create<StoreState>((set, get) => ({
         fila: filaAtualizada,
         rankingJogadores,
         rankingTimes,
+        snapshotAnterior: snapshot, // ✅ guarda o snapshot
+      };
+      salvar(newState);
+      return newState;
+    });
+  },
+
+  // ✅ Desfaz a última vitória restaurando o snapshot
+  desfazerUltimaVitoria: () => {
+    set((s) => {
+      if (!s.snapshotAnterior) return s;
+
+      const newState = {
+        ...s.snapshotAnterior,
+        snapshotAnterior: null, // ✅ só permite desfazer uma vez
       };
       salvar(newState);
       return newState;
@@ -410,7 +437,7 @@ export const useStore = create<StoreState>((set, get) => ({
           id: gerarId(),
           vitorias: 0,
           vitoriasSeguidas: 0,
-          congelado: t.congelado, // ✅ preserva o estado congelado
+          congelado: t.congelado,
           jogadores: t.jogadores.map((j) => j.id === jogadorSaiId ? jogadorEntra : j),
         };
       };
@@ -532,6 +559,7 @@ export const useStore = create<StoreState>((set, get) => ({
       jogadores: [] as Jogador[],
       rankingJogadores: [] as RankingJogador[],
       rankingTimes: [] as RankingTime[],
+      snapshotAnterior: null,
     };
     salvar(newState);
     set(newState);
