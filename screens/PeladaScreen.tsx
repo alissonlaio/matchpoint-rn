@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity,
   StyleSheet, ScrollView, Alert, Platform, Modal,
 } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { useStore } from '../store/useStore';
 import { Screen } from '../App';
 import { Time } from '../types';
@@ -10,6 +11,8 @@ import { Time } from '../types';
 interface Props {
   navegar: (s: Screen) => void;
 }
+
+const URL_PUBLICA = 'https://alissonlaio.github.io/matchpoint-rn/?view=1';
 
 export default function PeladaScreen({ navegar }: Props) {
   const {
@@ -20,6 +23,7 @@ export default function PeladaScreen({ navegar }: Props) {
   } = useStore();
 
   const [modalResumoVisible, setModalResumoVisible] = useState(false);
+  const [modalQRVisible, setModalQRVisible] = useState(false);
   const totalDesfazer = historicoSnapshots.length;
 
   const handleVitoria = (time: Time) => {
@@ -47,7 +51,9 @@ export default function PeladaScreen({ navegar }: Props) {
   const handleEncerrar = () => setModalResumoVisible(true);
 
   const handleConfirmarEncerrar = () => {
-    setModalResumoVisible(false); encerrarPelada(); navegar('home');
+    setModalResumoVisible(false);
+    encerrarPelada();
+    navegar('home');
   };
 
   const getTimeNome = (time: Time) => `Time ${time.numero}`;
@@ -87,9 +93,15 @@ export default function PeladaScreen({ navegar }: Props) {
           <Text style={styles.btnHomeText}>➕</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>MatchPoint V.P</Text>
-        <TouchableOpacity style={styles.rankingBtn} onPress={() => navegar('ranking')}>
-          <Text style={styles.rankingBtnText}>📊</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {/* ✅ Botão QR Code */}
+          <TouchableOpacity style={styles.btnQR} onPress={() => setModalQRVisible(true)}>
+            <Text style={styles.btnQRText}>📱</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.rankingBtn} onPress={() => navegar('ranking')}>
+            <Text style={styles.rankingBtnText}>📊</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -102,7 +114,9 @@ export default function PeladaScreen({ navegar }: Props) {
 
         {totalDesfazer > 0 && (
           <TouchableOpacity style={styles.btnDesfazer} onPress={handleDesfazer}>
-            <Text style={styles.btnDesfazerText}>↩️ Desfazer última vitória ({totalDesfazer} disponível{totalDesfazer > 1 ? 'is' : ''})</Text>
+            <Text style={styles.btnDesfazerText}>
+              ↩️ Desfazer última vitória ({totalDesfazer} disponível{totalDesfazer > 1 ? 'is' : ''})
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -128,7 +142,9 @@ export default function PeladaScreen({ navegar }: Props) {
                 </View>
                 <View style={styles.filaJogadores}>
                   {time.jogadores.map((j) => (
-                    <Text key={j.id} style={[styles.filaJogadorNome, time.congelado && styles.filaJogadorNomeCongelado]}>{j.nome}</Text>
+                    <Text key={j.id} style={[styles.filaJogadorNome, time.congelado && styles.filaJogadorNomeCongelado]}>
+                      {j.nome}
+                    </Text>
                   ))}
                 </View>
               </View>
@@ -141,6 +157,39 @@ export default function PeladaScreen({ navegar }: Props) {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* ✅ Modal QR Code */}
+      <Modal visible={modalQRVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitulo}>📱 Acompanhe ao Vivo!</Text>
+            <Text style={styles.modalSubtitulo}>
+              Escaneie o QR Code ou compartilhe o link com os jogadores
+            </Text>
+            <View style={styles.qrContainer}>
+              <QRCode
+                value={URL_PUBLICA}
+                size={200}
+                color="#050d1a"
+                backgroundColor="#fff"
+              />
+            </View>
+            <View style={styles.urlBox}>
+              <Text style={styles.urlText}>{URL_PUBLICA}</Text>
+            </View>
+            <Text style={styles.qrDica}>
+              📲 Os jogadores abrem no celular e veem em tempo real quem está em quadra!
+            </Text>
+            <TouchableOpacity
+              style={styles.modalBtnFechar}
+              onPress={() => setModalQRVisible(false)}
+            >
+              <Text style={styles.modalBtnFecharText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal resumo */}
       <Modal visible={modalResumoVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -149,7 +198,9 @@ export default function PeladaScreen({ navegar }: Props) {
             {campeao && (
               <View style={styles.resumoCampeao}>
                 <Text style={styles.resumoCampeaoTitulo}>🏆 Time Campeão</Text>
-                <Text style={styles.resumoCampeaoNome}>Time {campeao.numero} — {campeao.vitorias} vitória{campeao.vitorias !== 1 ? 's' : ''}</Text>
+                <Text style={styles.resumoCampeaoNome}>
+                  Time {campeao.numero} — {campeao.vitorias} vitória{campeao.vitorias !== 1 ? 's' : ''}
+                </Text>
                 <View style={styles.resumoJogadoresRow}>
                   {campeao.jogadores.map(j => (<Text key={j.id} style={styles.resumoChip}>{j.nome}</Text>))}
                 </View>
@@ -189,8 +240,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2, borderBottomColor: '#f5c000',
   },
   headerTitle: { color: '#f5c000', fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
+  headerRight: { flexDirection: 'row', gap: 8 },
   btnHome: { backgroundColor: '#00c853', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   btnHomeText: { fontSize: 20 },
+  btnQR: { backgroundColor: '#0066ff', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  btnQRText: { fontSize: 20 },
   rankingBtn: { backgroundColor: '#f5c000', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   rankingBtnText: { fontSize: 20 },
   content: { padding: 16, paddingBottom: 40 },
@@ -227,7 +281,15 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
   modalBox: { backgroundColor: '#0c1a35', borderRadius: 16, padding: 24, width: '90%', borderWidth: 1, borderColor: '#f5c000' },
   modalTitulo: { color: '#f5c000', fontWeight: 'bold', fontSize: 18, textAlign: 'center', marginBottom: 4 },
-  modalSubtitulo: { color: '#3a5070', fontSize: 13, textAlign: 'center', marginBottom: 16 },
+  modalSubtitulo: { color: '#94a3b8', fontSize: 13, textAlign: 'center', marginBottom: 16 },
+  // ✅ QR Code styles
+  qrContainer: { alignItems: 'center', backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 16 },
+  urlBox: { backgroundColor: '#071020', borderRadius: 8, padding: 10, marginBottom: 12 },
+  urlText: { color: '#0066ff', fontSize: 11, textAlign: 'center' },
+  qrDica: { color: '#94a3b8', fontSize: 12, textAlign: 'center', marginBottom: 16, fontStyle: 'italic' },
+  modalBtnFechar: { backgroundColor: '#1a3a6e', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  modalBtnFecharText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
+  // resumo styles
   resumoCampeao: { backgroundColor: '#1a3a6e', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#f5c000' },
   resumoCampeaoTitulo: { color: '#f5c000', fontWeight: 'bold', fontSize: 13, marginBottom: 4 },
   resumoCampeaoNome: { color: '#fff', fontWeight: 'bold', fontSize: 15, marginBottom: 8 },
