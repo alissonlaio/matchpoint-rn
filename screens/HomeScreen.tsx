@@ -26,9 +26,9 @@ export default function HomeScreen({ navegar }: Props) {
   const [qtdJogadores, setQtdJogadores] = useState('');
   const [qtdEditar, setQtdEditar] = useState('');
   const { jogadores, adicionarJogador, peladaIniciada, iniciarPelada, remontarTimes } = useStore();
-  const logoSource = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? { uri: '/matchpoint-rn/assets/assets/logo.297edb7f6fe1e047f1aa19e855342bf2.png' }
-  : require('../assets/logo.png');
+
+  // ✅ usa require direto — o Expo resolve o path correto em qualquer ambiente
+  const logoSource = require('../assets/logo.png');
 
   const handleAdicionarJogador = () => {
     if (!nome.trim()) {
