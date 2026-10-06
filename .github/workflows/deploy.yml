@@ -22,6 +22,11 @@ jobs:
       - name: Build
         run: npx expo@54.0.33 export --platform web
 
+      - name: Fix paths
+        run: |
+          sed -i 's|href="/favicon.ico"|href="/matchpoint-rn/favicon.ico"|g' dist/index.html
+          sed -i 's|src="/_expo/|src="/matchpoint-rn/_expo/|g' dist/index.html
+
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
