@@ -27,6 +27,9 @@ jobs:
           sed -i 's|href="/favicon.ico"|href="/matchpoint-rn/favicon.ico"|g' dist/index.html
           sed -i 's|src="/_expo/|src="/matchpoint-rn/_expo/|g' dist/index.html
 
+      - name: Copy assets
+        run: cp -r assets dist/assets
+
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
