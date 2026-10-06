@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity,
   StyleSheet, ScrollView, Alert, Platform, Modal,
 } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
+import QRCode from 'react-qr-code';
 import { useStore } from '../store/useStore';
 import { Screen } from '../App';
 import { Time } from '../types';
@@ -169,8 +169,8 @@ export default function PeladaScreen({ navegar }: Props) {
               <QRCode
                 value={URL_PUBLICA}
                 size={200}
-                color="#050d1a"
-                backgroundColor="#fff"
+                fgColor="#050d1a"
+                bgColor="#fff"
               />
             </View>
             <View style={styles.urlBox}>
