@@ -25,9 +25,15 @@
     },
     "web": {
       "favicon": "./assets/logo.png",
+      "icon": "./assets/logo.png",
       "bundler": "metro",
       "output": "single",
-      "baseUrl": "/matchpoint-rn"
+      "baseUrl": "/matchpoint-rn",
+      "meta": {
+        "apple-mobile-web-app-capable": "yes",
+        "apple-mobile-web-app-status-bar-style": "black-translucent",
+        "apple-mobile-web-app-title": "MatchPoint"
+      }
     }
   }
 }

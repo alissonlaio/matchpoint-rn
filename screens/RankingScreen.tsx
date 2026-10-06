@@ -18,19 +18,44 @@ export default function RankingScreen({ navegar }: Props) {
   const top3 = timesOrdenados.slice(0, 3);
   const restante = timesOrdenados.slice(3);
 
-  const medalha = (pos: number) => {
-    if (pos === 0) return '🥇';
-    if (pos === 1) return '🥈';
-    if (pos === 2) return '🥉';
+  const obterPodio = (lista: { vitorias: number }[]) => {
+    const niveis: number[] = [];
+    for (const item of lista) {
+      if (!niveis.includes(item.vitorias)) niveis.push(item.vitorias);
+    }
+    niveis.sort((a, b) => b - a);
+    return niveis;
+  };
+
+  const medalha = (vitorias: number, lista: { vitorias: number }[]) => {
+    const niveis = obterPodio(lista);
+    if (vitorias === niveis[0]) return '🥇';
+    if (vitorias === niveis[1]) return '🥈';
+    if (vitorias === niveis[2]) return '🥉';
     return '';
   };
 
-  const corPosicao = (pos: number) => {
-    if (pos === 0) return '#f5a623';
-    if (pos === 1) return '#94a3b8';
-    if (pos === 2) return '#cd7c2f';
-    return '#f5a623';
+  const corPosicao = (vitorias: number, lista: { vitorias: number }[]) => {
+    const niveis = obterPodio(lista);
+    if (vitorias === niveis[0]) return '#f5a623';
+    if (vitorias === niveis[1]) return '#94a3b8';
+    if (vitorias === niveis[2]) return '#cd7c2f';
+    return '#ffffff';
   };
+
+  // ✅ Agrupa jogadores com mesma pontuação
+  const gruposJogadores = (() => {
+    const grupos: { vitorias: number; jogadores: typeof jogadoresOrdenados }[] = [];
+    for (const j of jogadoresOrdenados) {
+      const ultimo = grupos[grupos.length - 1];
+      if (ultimo && ultimo.vitorias === j.vitorias) {
+        ultimo.jogadores.push(j);
+      } else {
+        grupos.push({ vitorias: j.vitorias, jogadores: [j] });
+      }
+    }
+    return grupos;
+  })();
 
   return (
     <View style={styles.container}>
@@ -56,19 +81,34 @@ export default function RankingScreen({ navegar }: Props) {
                   idx === 0 && styles.podioItemOuro,
                 ]}>
                   <View style={styles.podioLeft}>
-                    <Text style={styles.podioMedalha}>{medalha(idx)}</Text>
-                    <View>
-                      <Text style={[styles.podioTimeNome, { color: corPosicao(idx) }]}>
+                    <Text style={styles.podioMedalha}>
+                      {medalha(time.vitorias, timesOrdenados)}
+                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[
+                        styles.podioTimeNome,
+                        { color: corPosicao(time.vitorias, timesOrdenados) }
+                      ]}>
                         Time {time.numero}
                       </Text>
                       <View style={styles.podioJogadores}>
                         {time.jogadores.map((j) => (
-                          <Text key={j.id} style={styles.podioJogadorChip}>{j.nome}</Text>
+                          <Text
+                            key={j.id}
+                            style={styles.podioJogadorChip}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {j.nome}
+                          </Text>
                         ))}
                       </View>
                     </View>
                   </View>
-                  <View style={[styles.vitoriasBox, { backgroundColor: corPosicao(idx) }]}>
+                  <View style={[
+                    styles.vitoriasBox,
+                    { backgroundColor: corPosicao(time.vitorias, timesOrdenados) }
+                  ]}>
                     <Text style={styles.vitoriasNum}>{time.vitorias}</Text>
                     <Text style={styles.vitoriasLabel}>VITÓRIAS</Text>
                   </View>
@@ -92,7 +132,14 @@ export default function RankingScreen({ navegar }: Props) {
               <Text style={styles.filaTimeNome}>Time {time.numero}</Text>
               <View style={styles.filaJogadores}>
                 {time.jogadores.map((j) => (
-                  <Text key={j.id} style={styles.filaJogadorChip}>{j.nome}</Text>
+                  <Text
+                    key={j.id}
+                    style={styles.filaJogadorChip}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {j.nome}
+                  </Text>
                 ))}
               </View>
             </View>
@@ -116,19 +163,34 @@ export default function RankingScreen({ navegar }: Props) {
           {jogadoresOrdenados.length === 0 ? (
             <Text style={styles.vazio}>Nenhum dado ainda.</Text>
           ) : (
-            jogadoresOrdenados.map((j, idx) => (
-              <View key={j.id} style={styles.rankingJogadorRow}>
-                <Text style={[styles.rankingPos, { color: corPosicao(idx) }]}>
-                  {idx + 1}º
-                </Text>
-                <Text style={styles.rankingNome}>
-                  {medalha(idx)} {j.nome}
-                </Text>
-                <View style={styles.rankingVitoriasBox}>
-                  <Text style={styles.rankingVitoriasNum}>{j.vitorias}</Text>
-                </View>
-              </View>
-            ))
+            // ✅ Renderiza grupos com mesma pontuação na mesma linha
+            (() => {
+              let posAtual = 1;
+              return gruposJogadores.map((grupo) => {
+                const pos = posAtual;
+                posAtual += grupo.jogadores.length;
+                const med = medalha(grupo.vitorias, jogadoresOrdenados);
+                const cor = corPosicao(grupo.vitorias, jogadoresOrdenados);
+
+                return (
+                  <View
+                    key={`grupo-${grupo.vitorias}-${pos}`}
+                    style={styles.rankingJogadorRow}
+                  >
+                    <Text style={[styles.rankingPos, { color: cor }]}>
+                      {pos}º
+                    </Text>
+                    <Text style={styles.rankingNome}>
+                      {med}{med ? ' ' : ''}
+                      {grupo.jogadores.map(j => j.nome).join(' · ')}
+                    </Text>
+                    <View style={styles.rankingVitoriasBox}>
+                      <Text style={styles.rankingVitoriasNum}>{grupo.vitorias}</Text>
+                    </View>
+                  </View>
+                );
+              });
+            })()
           )}
         </View>
 
@@ -179,6 +241,7 @@ const styles = StyleSheet.create({
   podioJogadorChip: {
     backgroundColor: '#0a1628', color: '#94a3b8', fontSize: 12,
     borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3,
+    maxWidth: 100,
   },
   vitoriasBox: {
     borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
@@ -213,7 +276,9 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start', marginBottom: 6,
   },
   filaJogadores: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  filaJogadorChip: { color: '#94a3b8', fontSize: 13 },
+  filaJogadorChip: {
+    color: '#94a3b8', fontSize: 13, maxWidth: 100,
+  },
   filaVitorias: { alignItems: 'center' },
   filaVitoriasNum: {
     color: '#fff', fontWeight: 'bold', fontSize: 14,

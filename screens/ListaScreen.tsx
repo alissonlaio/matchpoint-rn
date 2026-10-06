@@ -39,7 +39,6 @@ export default function ListaScreen({ navegar }: Props) {
     return null;
   };
 
-  // Verifica se tem 3º time disponível para substituir
   const filaSemCongelado = fila.filter(t => !t.congelado);
   const terceiroTime = filaSemCongelado[0];
   const temTerceiroTime = terceiroTime && terceiroTime.jogadores.length > 0;
@@ -75,13 +74,11 @@ export default function ListaScreen({ navegar }: Props) {
     setModalSubstVisible(true);
   };
 
-  
   const handleSubstituir = (jogadorEntra: Jogador) => {
     if (!jogadorSelecionado) return;
     if (confirmar(`Trocar "${jogadorSelecionado.nome}" por "${jogadorEntra.nome}"?`)) {
       const timeSai = timeDoJogador;
       const timeEntra = encontrarTimeDoJogador(jogadorEntra.id);
-
       if (timeSai && timeEntra) {
         substituirJogador(timeSai.id, jogadorSelecionado.id, jogadorEntra.id);
         substituirJogador(timeEntra.id, jogadorEntra.id, jogadorSelecionado.id);
@@ -113,22 +110,50 @@ export default function ListaScreen({ navegar }: Props) {
     });
   }
 
-  const renderJogadorRow = (j: Jogador, time: Time | null) => (
-    <View key={j.id} style={styles.jogadorRow}>
-      <Text style={styles.jogadorNome}>{j.nome}</Text>
-      <View style={styles.jogadorBtns}>
-        <TouchableOpacity style={styles.btnEditar} onPress={() => handleEditar(j)}>
-          <Text style={styles.btnIcon}>✏️</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.btnSubst} onPress={() => handleAbrirSubst(j, time)}>
-          <Text style={styles.btnIcon}>🔄</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.btnRemover} onPress={() => handleRemover(j)}>
-          <Text style={styles.btnRemoverText}>✕</Text>
-        </TouchableOpacity>
+  // ✅ Ponto 3: badge de status do jogador
+  const getBadgeStatus = (time: Time | null): { texto: string; cor: string } | null => {
+    if (!time) return null;
+    const eEmQuadra = time.id === timeEmQuadra1?.id || time.id === timeEmQuadra2?.id;
+    if (eEmQuadra) return { texto: 'em quadra', cor: '#22c55e' };
+    if (time.congelado) return { texto: '❄️ aguardando', cor: '#60a5fa' };
+    return null;
+  };
+
+  const renderJogadorRow = (j: Jogador, time: Time | null, podeRemover: boolean) => {
+    const badge = getBadgeStatus(time);
+
+    return (
+      <View key={j.id} style={styles.jogadorRow}>
+        <View style={styles.jogadorInfo}>
+          <Text style={styles.jogadorNome}>{j.nome}</Text>
+          {/* ✅ Ponto 3: badge de status */}
+          {badge && (
+            <Text style={[styles.jogadorBadge, { color: badge.cor, borderColor: badge.cor }]}>
+              {badge.texto}
+            </Text>
+          )}
+        </View>
+        <View style={styles.jogadorBtns}>
+          <TouchableOpacity style={styles.btnEditar} onPress={() => handleEditar(j)}>
+            <Text style={styles.btnIcon}>✏️</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.btnSubst} onPress={() => handleAbrirSubst(j, time)}>
+            <Text style={styles.btnIcon}>🔄</Text>
+          </TouchableOpacity>
+          {/* ✅ Ponto 2+3: botão remover desabilitado com visual cinza */}
+          {podeRemover ? (
+            <TouchableOpacity style={styles.btnRemover} onPress={() => handleRemover(j)}>
+              <Text style={styles.btnRemoverText}>✕</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.btnRemoverDesabilitado}>
+              <Text style={styles.btnRemoverDesabilitadoText}>✕</Text>
+            </View>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -144,28 +169,33 @@ export default function ListaScreen({ navegar }: Props) {
 
       <ScrollView contentContainerStyle={styles.content}>
         {peladaIniciada ? (
-          todosOsTimes.map(({ time, label }) => (
-            <View key={time.id} style={[
-              styles.timeCard,
-              time.congelado && styles.timeCardCongelado,
-            ]}>
-              <View style={styles.timeHeader}>
-                <Text style={[
-                  styles.timeLabel,
-                  time.congelado && styles.timeLabelCongelado,
-                ]}>{label}</Text>
-                <View style={[
-                  styles.vitoriasBox,
-                  time.congelado && styles.vitoriasBoxCongelado,
-                ]}>
-                  <Text style={styles.vitoriasNum}>{time.vitoriasSeguidas}</Text>
-                  <Text style={styles.vitoriasLabel}>VIT</Text>
+          todosOsTimes.map(({ time, label }) => {
+            const eEmQuadra = time.id === timeEmQuadra1?.id || time.id === timeEmQuadra2?.id;
+            const podeRemover = !eEmQuadra && !time.congelado;
+
+            return (
+              <View key={time.id} style={[
+                styles.timeCard,
+                time.congelado && styles.timeCardCongelado,
+              ]}>
+                <View style={styles.timeHeader}>
+                  <Text style={[
+                    styles.timeLabel,
+                    time.congelado && styles.timeLabelCongelado,
+                  ]}>{label}</Text>
+                  <View style={[
+                    styles.vitoriasBox,
+                    time.congelado && styles.vitoriasBoxCongelado,
+                  ]}>
+                    <Text style={styles.vitoriasNum}>{time.vitoriasSeguidas}</Text>
+                    <Text style={styles.vitoriasLabel}>VIT</Text>
+                  </View>
                 </View>
+                {time.jogadores.map(j => renderJogadorRow(j, time, podeRemover))}
+                <View style={styles.separador} />
               </View>
-              {time.jogadores.map(j => renderJogadorRow(j, time))}
-              <View style={styles.separador} />
-            </View>
-          ))
+            );
+          })
         ) : (
           <View style={styles.timeCard}>
             <View style={styles.timeHeader}>
@@ -174,7 +204,7 @@ export default function ListaScreen({ navegar }: Props) {
             {jogadores.length === 0 ? (
               <Text style={styles.vazio}>Nenhum jogador adicionado ainda.</Text>
             ) : (
-              jogadores.map(j => renderJogadorRow(j, null))
+              jogadores.map(j => renderJogadorRow(j, null, true))
             )}
           </View>
         )}
@@ -244,7 +274,6 @@ export default function ListaScreen({ navegar }: Props) {
                 })}
             </ScrollView>
 
-            {/* Botão mover pra fila — só aparece se tiver 3º time */}
             {temTerceiroTime ? (
               <TouchableOpacity style={styles.modalBtnFila} onPress={handleMoverParaFila}>
                 <Text style={styles.modalBtnFilaText}>
@@ -315,7 +344,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10,
     borderBottomWidth: 1, borderBottomColor: '#e2e8f0',
   },
-  jogadorNome: { fontSize: 15, color: '#111', flex: 1 },
+  // ✅ Ponto 3: info do jogador com nome + badge
+  jogadorInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  jogadorNome: { fontSize: 15, color: '#111' },
+  jogadorBadge: {
+    fontSize: 10, fontWeight: 'bold',
+    borderWidth: 1, borderRadius: 4,
+    paddingHorizontal: 5, paddingVertical: 2,
+  },
   jogadorBtns: { flexDirection: 'row', gap: 6 },
   btnEditar: {
     borderWidth: 1, borderColor: '#f5a623', borderRadius: 6,
@@ -329,8 +365,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#ef4444', borderRadius: 6,
     padding: 6, width: 36, alignItems: 'center',
   },
+  // ✅ Ponto 3: botão remover desabilitado visual
+  btnRemoverDesabilitado: {
+    borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 6,
+    padding: 6, width: 36, alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+  },
   btnIcon: { fontSize: 14 },
   btnRemoverText: { fontSize: 14, color: '#ef4444', fontWeight: 'bold' },
+  btnRemoverDesabilitadoText: { fontSize: 14, color: '#cbd5e1', fontWeight: 'bold' },
   separador: { height: 8, backgroundColor: '#0d1f3c' },
   vazio: { padding: 16, color: '#888', textAlign: 'center' },
   btnVoltar: {
