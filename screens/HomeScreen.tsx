@@ -28,7 +28,9 @@ export default function HomeScreen({ navegar }: Props) {
   const { jogadores, adicionarJogador, peladaIniciada, iniciarPelada, remontarTimes } = useStore();
 
   // ✅ usa require direto — o Expo resolve o path correto em qualquer ambiente
-  const logoSource = require('../assets/logo.png');
+const logoSource = Platform.OS === 'web'
+  ? { uri: 'https://alissonlaio.github.io/matchpoint-rn/assets/assets/logo.944335ee8bb4a02c618d7a423f62dd28.png' }
+  : require('../assets/logo.png');
 
   const handleAdicionarJogador = () => {
     if (!nome.trim()) {
