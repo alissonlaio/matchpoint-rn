@@ -12,15 +12,14 @@ export type Screen = 'home' | 'lista' | 'pelada' | 'ranking' | 'campeonato' | 'v
 export default function App() {
   const [screen, setScreen] = useState<Screen>('home');
 
-  useEffect(() => {
-    // ✅ Se acessar /view na URL, mostra a tela pública
-    if (Platform.OS === 'web') {
-      const path = window.location.pathname;
-      if (path.includes('/view')) {
-        setScreen('view');
-      }
+useEffect(() => {
+  if (Platform.OS === 'web') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === '1') {
+      setScreen('view');
     }
-  }, []);
+  }
+}, []);
 
   const renderScreen = () => {
     switch (screen) {
