@@ -40,14 +40,14 @@ function salvar(state: Partial<StoreState>) {
       moverJogadorParaFila, moverJogadorParaFilaComSubstituto,
       encerrarPelada, desfazerUltimaVitoria, ...dados } = novo as any;
     localStorage.setItem('matchpoint-storage', JSON.stringify(dados));
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function carregar() {
   try {
     const raw = localStorage.getItem('matchpoint-storage');
     if (raw) return JSON.parse(raw);
-  } catch (e) {}
+  } catch (e) { }
   return {};
 }
 
@@ -289,6 +289,7 @@ export const useStore = create<StoreState>((set, get) => ({
         fila: s.fila,
         rankingJogadores: s.rankingJogadores,
         rankingTimes: s.rankingTimes,
+        jogadores: s.jogadores, // ✅ inclui jogadores no snapshot
       };
       const historicoSnapshots = [
         novoSnapshot,
