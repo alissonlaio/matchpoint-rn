@@ -15,12 +15,12 @@ interface StoreState {
   rankingJogadores: RankingJogador[];
   rankingTimes: RankingTime[];
   historicoSnapshots: Partial<StoreState>[];
-  senhaAdmin: string | null; // ✅ senha do organizador
+  senhaAdmin: string | null;
 
   adicionarJogador: (nome: string) => void;
   editarJogador: (id: string, novoNome: string) => void;
   removerJogador: (id: string) => void;
-  iniciarPelada: (jogadoresPorTime: number, senha: string) => void; // ✅ recebe senha
+  iniciarPelada: (jogadoresPorTime: number, senha: string) => void;
   remontarTimes: (jogadoresPorTime: number) => void;
   registrarVitoria: (timeVencedorId: string) => void;
   desfazerUltimaVitoria: () => void;
@@ -28,7 +28,7 @@ interface StoreState {
   moverJogadorParaFila: (timeId: string, jogadorId: string) => void;
   moverJogadorParaFilaComSubstituto: (timeId: string, jogadorId: string) => void;
   encerrarPelada: () => void;
-  validarSenha: (senha: string) => boolean; // ✅ valida senha
+  validarSenha: (senha: string) => boolean;
 }
 
 function gerarId(): string {
@@ -136,9 +136,8 @@ export const useStore = create<StoreState>((set, get) => ({
   rankingJogadores: dadosSalvos.rankingJogadores || [],
   rankingTimes: dadosSalvos.rankingTimes || [],
   historicoSnapshots: dadosSalvos.historicoSnapshots || [],
-  senhaAdmin: dadosSalvos.senhaAdmin || null, // ✅
+  senhaAdmin: dadosSalvos.senhaAdmin || null,
 
-  // ✅ valida senha
   validarSenha: (senha) => {
     const { senhaAdmin } = get();
     return senhaAdmin === senha;
@@ -174,6 +173,8 @@ export const useStore = create<StoreState>((set, get) => ({
           vitoriasSeguidas: 0, congelado: false,
         });
       }
+      // ✅ sincroniza firebase ao adicionar jogador durante pelada
+      sincronizarFirebase(s.timeEmQuadra1, s.timeEmQuadra2, novaFila);
       salvar({ jogadores, rankingJogadores, fila: novaFila });
       return { jogadores, rankingJogadores, fila: novaFila };
     });
@@ -187,13 +188,18 @@ export const useStore = create<StoreState>((set, get) => ({
         if (!t) return null;
         return { ...t, jogadores: t.jogadores.map(j => j.id === id ? { ...j, nome: novoNome } : j) };
       };
+      const t1 = atualizarNomeNoTime(s.timeEmQuadra1);
+      const t2 = atualizarNomeNoTime(s.timeEmQuadra2);
+      const novaFila = s.fila.map(t => atualizarNomeNoTime(t) as Time);
       const newState = {
         jogadores,
         rankingJogadores,
-        timeEmQuadra1: atualizarNomeNoTime(s.timeEmQuadra1),
-        timeEmQuadra2: atualizarNomeNoTime(s.timeEmQuadra2),
-        fila: s.fila.map(t => atualizarNomeNoTime(t) as Time),
+        timeEmQuadra1: t1,
+        timeEmQuadra2: t2,
+        fila: novaFila,
       };
+      // ✅ sincroniza firebase ao editar nome
+      if (s.peladaIniciada) sincronizarFirebase(t1, t2, novaFila);
       salvar(newState);
       return newState;
     });
@@ -238,6 +244,8 @@ export const useStore = create<StoreState>((set, get) => ({
       }
 
       const filaFinal = [...filaCongelado, ...novaFila];
+      // ✅ sincroniza firebase ao remover jogador
+      sincronizarFirebase(s.timeEmQuadra1, s.timeEmQuadra2, filaFinal);
       const newState = {
         jogadores,
         timeEmQuadra1: s.timeEmQuadra1,
@@ -274,8 +282,10 @@ export const useStore = create<StoreState>((set, get) => ({
       rankingJogadores,
       rankingTimes: [] as RankingTime[],
       historicoSnapshots: [],
-      senhaAdmin: senha, // ✅ salva senha
+      senhaAdmin: senha,
     };
+    // ✅ sincroniza firebase ao iniciar pelada
+    sincronizarFirebase(times[0] || null, times[1] || null, times.slice(2));
     salvar(newState);
     set(newState);
   },
@@ -303,6 +313,8 @@ export const useStore = create<StoreState>((set, get) => ({
       rankingJogadores,
       historicoSnapshots: [],
     };
+    // ✅ sincroniza firebase ao remontar times
+    sincronizarFirebase(times[0] || null, times[1] || null, times.slice(2));
     salvar(newState);
     set(newState);
   },
@@ -397,6 +409,12 @@ export const useStore = create<StoreState>((set, get) => ({
       if (s.historicoSnapshots.length === 0) return s;
       const [ultimo, ...restante] = s.historicoSnapshots;
       const newState = { ...ultimo, historicoSnapshots: restante };
+      // ✅ sincroniza firebase ao desfazer
+      sincronizarFirebase(
+        ultimo.timeEmQuadra1 || null,
+        ultimo.timeEmQuadra2 || null,
+        ultimo.fila || []
+      );
       salvar(newState);
       return newState;
     });
@@ -410,11 +428,12 @@ export const useStore = create<StoreState>((set, get) => ({
         if (!t || t.id !== timeId) return t;
         return { ...t, id: gerarId(), vitorias: 0, vitoriasSeguidas: 0, congelado: t.congelado, jogadores: t.jogadores.map((j) => j.id === jogadorSaiId ? jogadorEntra : j) };
       };
-      const newState = {
-        timeEmQuadra1: atualizarTime(s.timeEmQuadra1),
-        timeEmQuadra2: atualizarTime(s.timeEmQuadra2),
-        fila: s.fila.map((t) => atualizarTime(t) as Time),
-      };
+      const t1 = atualizarTime(s.timeEmQuadra1);
+      const t2 = atualizarTime(s.timeEmQuadra2);
+      const novaFila = s.fila.map((t) => atualizarTime(t) as Time);
+      const newState = { timeEmQuadra1: t1, timeEmQuadra2: t2, fila: novaFila };
+      // ✅ sincroniza firebase ao substituir
+      sincronizarFirebase(t1, t2, novaFila);
       salvar(newState);
       return newState;
     });
@@ -429,11 +448,12 @@ export const useStore = create<StoreState>((set, get) => ({
         return { ...t, id: gerarId(), vitorias: 0, vitoriasSeguidas: 0, congelado: false, jogadores: t.jogadores.filter((j) => j.id !== jogadorId) };
       };
       const timeAvulso: Time = { id: gerarId(), numero: s.fila.length + 3, jogadores: [jogador], vitorias: 0, vitoriasSeguidas: 0, congelado: false };
-      const newState = {
-        timeEmQuadra1: removerDoTime(s.timeEmQuadra1),
-        timeEmQuadra2: removerDoTime(s.timeEmQuadra2),
-        fila: [...s.fila.map((t) => removerDoTime(t) as Time), timeAvulso],
-      };
+      const t1 = removerDoTime(s.timeEmQuadra1);
+      const t2 = removerDoTime(s.timeEmQuadra2);
+      const novaFila = [...s.fila.map((t) => removerDoTime(t) as Time), timeAvulso];
+      const newState = { timeEmQuadra1: t1, timeEmQuadra2: t2, fila: novaFila };
+      // ✅ sincroniza firebase ao mover para fila
+      sincronizarFirebase(t1, t2, novaFila);
       salvar(newState);
       return newState;
     });
@@ -466,11 +486,11 @@ export const useStore = create<StoreState>((set, get) => ({
         novaFila.push({ id: gerarId(), numero: proximoNumero, jogadores: sobras, vitorias: 0, vitoriasSeguidas: 0, congelado: false });
       }
       const filaFinal = [...filaCongelado, ...novaFila];
-      const newState = {
-        timeEmQuadra1: atualizarTime(s.timeEmQuadra1),
-        timeEmQuadra2: atualizarTime(s.timeEmQuadra2),
-        fila: filaFinal,
-      };
+      const t1 = atualizarTime(s.timeEmQuadra1);
+      const t2 = atualizarTime(s.timeEmQuadra2);
+      const newState = { timeEmQuadra1: t1, timeEmQuadra2: t2, fila: filaFinal };
+      // ✅ sincroniza firebase ao mover com substituto
+      sincronizarFirebase(t1, t2, filaFinal);
       salvar(newState);
       return newState;
     });
@@ -487,7 +507,7 @@ export const useStore = create<StoreState>((set, get) => ({
       rankingJogadores: [] as RankingJogador[],
       rankingTimes: [] as RankingTime[],
       historicoSnapshots: [],
-      senhaAdmin: null, // ✅ apaga senha ao encerrar
+      senhaAdmin: null,
     };
     sincronizarFirebase(null, null, []);
     salvar(newState);
