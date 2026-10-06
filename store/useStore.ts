@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { Jogador, Time, RankingJogador, RankingTime } from '../types';
+import { ref, set } from 'firebase/database';
+import { db } from './firebase';
 
 const MAX_SNAPSHOTS = 5;
 
@@ -109,6 +111,17 @@ function completarTimeIncompleto(
     filaWork[i] = { ...filaWork[i], jogadores: [...filaWork[i].jogadores, ...emprestados] };
   }
   return { perdedorFinal: perdedorAtual, filaFinal: filaWork };
+}
+
+function sincronizarFirebase(timeEmQuadra1: Time | null, timeEmQuadra2: Time | null, fila: Time[]) {
+  try {
+    set(ref(db, 'pelada'), {
+      timeEmQuadra1,
+      timeEmQuadra2,
+      fila,
+      atualizadoEm: Date.now(),
+    });
+  } catch (e) {}
 }
 
 const dadosSalvos = carregar();
@@ -373,6 +386,7 @@ export const useStore = create<StoreState>((set, get) => ({
         rankingTimes,
         historicoSnapshots,
       };
+      sincronizarFirebase(proximoT1, proximoT2, filaAtualizada);
       salvar(newState);
       return newState;
     });
@@ -475,6 +489,7 @@ export const useStore = create<StoreState>((set, get) => ({
       historicoSnapshots: [],
       senhaAdmin: null, // ✅ apaga senha ao encerrar
     };
+    sincronizarFirebase(null, null, []);
     salvar(newState);
     set(newState);
   },
