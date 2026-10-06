@@ -7,12 +7,12 @@
   "theme_color": "#0a1628",
   "icons": [
     {
-      "src": "/matchpoint-rn/assets/assets/logo.944335ee8bb4a02c618d7a423f62dd28.png",
+      "src": "/matchpoint-rn/assets/assets/logo.64dbe0f48b90f5dc0d6fa048b1d0da9b.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/matchpoint-rn/assets/assets/logo.944335ee8bb4a02c618d7a423f62dd28.png",
+      "src": "/matchpoint-rn/assets/assets/logo.64dbe0f48b90f5dc0d6fa048b1d0da9b.png",
       "sizes": "512x512",
       "type": "image/png"
     }
