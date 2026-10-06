@@ -30,7 +30,7 @@ jobs:
       - name: Copy assets
         run: |
           mkdir -p dist/assets/assets
-          cp assets/logo.png dist/assets/assets/logo.png
+          cp assets/logo.png dist/assets/assets/logo.944335ee8bb4a02c618d7a423f62dd28.png
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
