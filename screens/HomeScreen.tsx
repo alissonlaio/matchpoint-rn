@@ -25,6 +25,8 @@ export default function HomeScreen({ navegar }: Props) {
   const [modalEditarTimeVisible, setModalEditarTimeVisible] = useState(false);
   const [qtdJogadores, setQtdJogadores] = useState('');
   const [qtdEditar, setQtdEditar] = useState('');
+  const [senha, setSenha] = useState(''); // ✅ senha
+  const [confirmarSenha, setConfirmarSenha] = useState(''); // ✅ confirmar senha
   const { jogadores, adicionarJogador, peladaIniciada, iniciarPelada, remontarTimes } = useStore();
 
   const logoSource = Platform.OS === 'web'
@@ -47,7 +49,16 @@ export default function HomeScreen({ navegar }: Props) {
     const qtd = parseInt(qtdJogadores);
     if (isNaN(qtd) || qtd < 2 || qtd > 6) { alertar('Digite um número entre 2 e 6.'); return; }
     if (jogadores.length < qtd * 2) { alertar(`Você precisa de pelo menos ${qtd * 2} jogadores para montar 2 times.`); return; }
-    iniciarPelada(qtd); setModalVisible(false); setQtdJogadores(''); navegar('pelada');
+    // ✅ valida senha
+    if (!senha.trim()) { alertar('Digite uma senha para proteger a pelada.'); return; }
+    if (senha !== confirmarSenha) { alertar('As senhas não coincidem.'); return; }
+    if (senha.length < 4) { alertar('A senha deve ter pelo menos 4 caracteres.'); return; }
+    iniciarPelada(qtd, senha);
+    setModalVisible(false);
+    setQtdJogadores('');
+    setSenha('');
+    setConfirmarSenha('');
+    navegar('pelada');
   };
 
   const handleEditarTime = () => {
@@ -101,17 +112,46 @@ export default function HomeScreen({ navegar }: Props) {
         <Text style={styles.btnCampeonatoText}>🏆  Modo Campeonato</Text>
       </TouchableOpacity>
 
+      {/* Modal iniciar pelada */}
       <Modal visible={modalVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Nº Jogadores por Time</Text>
+            <Text style={styles.modalTitle}>Iniciar Pelada</Text>
+
+            <Text style={styles.modalLabel}>Nº Jogadores por Time</Text>
             <TextInput style={styles.modalInput} placeholder="Ex: 4" placeholderTextColor="#3a5070"
               keyboardType="numeric" value={qtdJogadores} onChangeText={setQtdJogadores} />
+
+            {/* ✅ Campo senha */}
+            <Text style={styles.modalLabel}>Senha do Admin</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Digite a senha..."
+              placeholderTextColor="#3a5070"
+              secureTextEntry
+              value={senha}
+              onChangeText={setSenha}
+            />
+
+            <Text style={styles.modalLabel}>Confirmar Senha</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Confirme a senha..."
+              placeholderTextColor="#3a5070"
+              secureTextEntry
+              value={confirmarSenha}
+              onChangeText={setConfirmarSenha}
+            />
+
+            <Text style={styles.modalAviso}>
+              🔒 Guarde a senha! Ela será necessária para editar, substituir ou remover jogadores durante a pelada.
+            </Text>
+
             <View style={styles.modalBtns}>
               <TouchableOpacity style={styles.modalBtnSalvar} onPress={handleIniciarPelada}>
-                <Text style={styles.modalBtnSalvarText}>Salvar</Text>
+                <Text style={styles.modalBtnSalvarText}>Iniciar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalBtnCancelar} onPress={() => setModalVisible(false)}>
+              <TouchableOpacity style={styles.modalBtnCancelar} onPress={() => { setModalVisible(false); setSenha(''); setConfirmarSenha(''); }}>
                 <Text style={styles.modalBtnCancelarText}>Cancelar</Text>
               </TouchableOpacity>
             </View>
@@ -119,6 +159,7 @@ export default function HomeScreen({ navegar }: Props) {
         </View>
       </Modal>
 
+      {/* Modal editar número de jogadores por time */}
       <Modal visible={modalEditarTimeVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -151,53 +192,29 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2, borderBottomColor: '#f5c000',
   },
   headerTitle: { color: '#f5c000', fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
-  rankingBtn: {
-    backgroundColor: '#f5c000', width: 44, height: 44,
-    borderRadius: 22, justifyContent: 'center', alignItems: 'center',
-  },
+  rankingBtn: { backgroundColor: '#f5c000', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   rankingBtnText: { fontSize: 20 },
   logoContainer: { alignItems: 'center', marginVertical: 24 },
   logo: { width: 220, height: 220 },
   label: { color: '#f5c000', fontWeight: 'bold', fontSize: 15, marginHorizontal: 16, marginBottom: 8 },
-  input: {
-    backgroundColor: '#0c1a35', borderRadius: 10, borderWidth: 1,
-    borderColor: '#1a3a6e', color: '#fff', fontSize: 15,
-    paddingHorizontal: 16, paddingVertical: 14, marginHorizontal: 16, marginBottom: 16,
-  },
-  btnAdicionar: {
-    backgroundColor: '#00c853', borderRadius: 10, marginHorizontal: 16,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
-  },
+  input: { backgroundColor: '#0c1a35', borderRadius: 10, borderWidth: 1, borderColor: '#1a3a6e', color: '#fff', fontSize: 15, paddingHorizontal: 16, paddingVertical: 14, marginHorizontal: 16, marginBottom: 16 },
+  btnAdicionar: { backgroundColor: '#00c853', borderRadius: 10, marginHorizontal: 16, paddingVertical: 16, alignItems: 'center', marginBottom: 12 },
   btnAdicionarText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  btnLista: {
-    backgroundColor: '#0c1a35', borderRadius: 10, marginHorizontal: 16,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
-    borderWidth: 1, borderColor: '#1a3a6e',
-  },
+  btnLista: { backgroundColor: '#0c1a35', borderRadius: 10, marginHorizontal: 16, paddingVertical: 16, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: '#1a3a6e' },
   btnListaText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  btnEditarTime: {
-    borderRadius: 10, marginHorizontal: 16, paddingVertical: 16,
-    alignItems: 'center', borderWidth: 1, borderColor: '#0066ff', marginBottom: 12,
-  },
+  btnEditarTime: { borderRadius: 10, marginHorizontal: 16, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: '#0066ff', marginBottom: 12 },
   btnEditarTimeText: { color: '#0066ff', fontWeight: 'bold', fontSize: 16 },
-  btnPelada: {
-    borderRadius: 10, marginHorizontal: 16, paddingVertical: 16,
-    alignItems: 'center', borderWidth: 2, borderColor: '#f5c000', marginBottom: 12,
-    backgroundColor: 'rgba(245,192,0,0.08)',
-  },
+  btnPelada: { borderRadius: 10, marginHorizontal: 16, paddingVertical: 16, alignItems: 'center', borderWidth: 2, borderColor: '#f5c000', marginBottom: 12, backgroundColor: 'rgba(245,192,0,0.08)' },
   btnPeladaText: { color: '#f5c000', fontWeight: 'bold', fontSize: 16 },
-  btnCampeonato: {
-    borderRadius: 10, marginHorizontal: 16, paddingVertical: 16,
-    alignItems: 'center', borderWidth: 2, borderColor: '#a855f7',
-    backgroundColor: 'rgba(168,85,247,0.08)',
-  },
+  btnCampeonato: { borderRadius: 10, marginHorizontal: 16, paddingVertical: 16, alignItems: 'center', borderWidth: 2, borderColor: '#a855f7', backgroundColor: 'rgba(168,85,247,0.08)' },
   btnCampeonatoText: { color: '#a855f7', fontWeight: 'bold', fontSize: 16 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
-  modalBox: { backgroundColor: '#0c1a35', borderRadius: 16, padding: 24, width: '80%', borderWidth: 1, borderColor: '#f5c000' },
-  modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12, color: '#f5c000' },
-  modalAviso: { fontSize: 13, color: '#ef4444', marginBottom: 12, backgroundColor: 'rgba(239,68,68,0.1)', padding: 8, borderRadius: 6 },
-  modalInput: { borderWidth: 1, borderColor: '#1a3a6e', borderRadius: 8, padding: 12, fontSize: 15, color: '#fff', marginBottom: 16, backgroundColor: '#050d1a' },
-  modalBtns: { flexDirection: 'row', gap: 12 },
+  modalBox: { backgroundColor: '#0c1a35', borderRadius: 16, padding: 24, width: '85%', borderWidth: 1, borderColor: '#f5c000' },
+  modalTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 16, color: '#f5c000', textAlign: 'center' },
+  modalLabel: { color: '#94a3b8', fontSize: 13, marginBottom: 6 },
+  modalAviso: { fontSize: 12, color: '#f5c000', marginBottom: 16, backgroundColor: 'rgba(245,192,0,0.08)', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(245,192,0,0.3)' },
+  modalInput: { borderWidth: 1, borderColor: '#1a3a6e', borderRadius: 8, padding: 12, fontSize: 15, color: '#fff', marginBottom: 12, backgroundColor: '#050d1a' },
+  modalBtns: { flexDirection: 'row', gap: 12, marginTop: 4 },
   modalBtnSalvar: { flex: 1, backgroundColor: '#0066ff', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   modalBtnSalvarText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
   modalBtnCancelar: { flex: 1, backgroundColor: '#ef4444', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },

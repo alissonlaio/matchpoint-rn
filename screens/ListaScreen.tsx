@@ -16,14 +16,18 @@ export default function ListaScreen({ navegar }: Props) {
     jogadores, editarJogador, removerJogador,
     peladaIniciada, fila, timeEmQuadra1, timeEmQuadra2,
     substituirJogador, moverJogadorParaFila,
-    moverJogadorParaFilaComSubstituto,
+    moverJogadorParaFilaComSubstituto, validarSenha,
   } = useStore();
 
   const [modalEditVisible, setModalEditVisible] = useState(false);
   const [modalSubstVisible, setModalSubstVisible] = useState(false);
+  const [modalSenhaVisible, setModalSenhaVisible] = useState(false);
   const [jogadorSelecionado, setJogadorSelecionado] = useState<Jogador | null>(null);
   const [timeDoJogador, setTimeDoJogador] = useState<Time | null>(null);
   const [novoNome, setNovoNome] = useState('');
+  const [senhaDigitada, setSenhaDigitada] = useState('');
+  const [erroSenha, setErroSenha] = useState(false);
+  const [acaoAposVerificar, setAcaoAposVerificar] = useState<() => void>(() => () => {});
 
   const confirmar = (msg: string) => { if (Platform.OS === 'web') return window.confirm(msg); return true; };
 
@@ -38,20 +42,57 @@ export default function ListaScreen({ navegar }: Props) {
   const terceiroTime = filaSemCongelado[0];
   const temTerceiroTime = terceiroTime && terceiroTime.jogadores.length > 0;
 
+  // ✅ Pede senha se pelada iniciada, executa ação depois
+  const pedirSenha = (acao: () => void) => {
+    if (!peladaIniciada) { acao(); return; }
+    setAcaoAposVerificar(() => acao);
+    setSenhaDigitada('');
+    setErroSenha(false);
+    setModalSenhaVisible(true);
+  };
+
+  const handleConfirmarSenha = () => {
+    if (validarSenha(senhaDigitada)) {
+      setModalSenhaVisible(false);
+      setSenhaDigitada('');
+      setErroSenha(false);
+      acaoAposVerificar();
+    } else {
+      setErroSenha(true);
+    }
+  };
+
   const handleEditar = (jogador: Jogador) => {
-    if (confirmar(`Deseja editar "${jogador.nome}"?`)) { setJogadorSelecionado(jogador); setNovoNome(jogador.nome); setModalEditVisible(true); }
+    pedirSenha(() => {
+      if (confirmar(`Deseja editar "${jogador.nome}"?`)) {
+        setJogadorSelecionado(jogador);
+        setNovoNome(jogador.nome);
+        setModalEditVisible(true);
+      }
+    });
   };
 
   const handleSalvarEdicao = () => {
     if (!novoNome.trim()) { if (Platform.OS === 'web') window.alert('Digite um nome válido.'); return; }
-    if (confirmar(`Salvar nome como "${novoNome.trim()}"?`)) { editarJogador(jogadorSelecionado!.id, novoNome.trim()); setModalEditVisible(false); }
+    if (confirmar(`Salvar nome como "${novoNome.trim()}"?`)) {
+      editarJogador(jogadorSelecionado!.id, novoNome.trim());
+      setModalEditVisible(false);
+    }
   };
 
   const handleRemover = (jogador: Jogador) => {
-    if (confirmar(`Remover "${jogador.nome}" da lista?`)) { removerJogador(jogador.id); }
+    pedirSenha(() => {
+      if (confirmar(`Remover "${jogador.nome}" da lista?`)) { removerJogador(jogador.id); }
+    });
   };
 
-  const handleAbrirSubst = (jogador: Jogador, time: Time | null) => { setJogadorSelecionado(jogador); setTimeDoJogador(time); setModalSubstVisible(true); };
+  const handleAbrirSubst = (jogador: Jogador, time: Time | null) => {
+    pedirSenha(() => {
+      setJogadorSelecionado(jogador);
+      setTimeDoJogador(time);
+      setModalSubstVisible(true);
+    });
+  };
 
   const handleSubstituir = (jogadorEntra: Jogador) => {
     if (!jogadorSelecionado) return;
@@ -68,7 +109,8 @@ export default function ListaScreen({ navegar }: Props) {
     if (!jogadorSelecionado || !timeDoJogador) return;
     const substitutoNome = terceiroTime?.jogadores[0]?.nome;
     if (confirmar(`"${jogadorSelecionado.nome}" vai pro final da fila e "${substitutoNome}" entra no time. Confirmar?`)) {
-      moverJogadorParaFilaComSubstituto(timeDoJogador.id, jogadorSelecionado.id); setModalSubstVisible(false);
+      moverJogadorParaFilaComSubstituto(timeDoJogador.id, jogadorSelecionado.id);
+      setModalSubstVisible(false);
     }
   };
 
@@ -165,6 +207,42 @@ export default function ListaScreen({ navegar }: Props) {
         <Text style={styles.btnVoltarText}>← Voltar</Text>
       </TouchableOpacity>
 
+      {/* ✅ Modal senha */}
+      <Modal visible={modalSenhaVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>🔒 Verificação de Senha</Text>
+            <Text style={styles.modalSubtitle}>Digite a senha do admin para continuar:</Text>
+            {Platform.OS === 'web' ? (
+              <input
+                type="password"
+                style={{ width: '100%', padding: 10, fontSize: 15, borderRadius: 8, border: erroSenha ? '1px solid #ef4444' : '1px solid #1a3a6e', backgroundColor: '#050d1a', color: '#fff', marginBottom: 8, boxSizing: 'border-box' }}
+                value={senhaDigitada}
+                onChange={(e) => { setSenhaDigitada(e.target.value); setErroSenha(false); }}
+                placeholder="Digite a senha..."
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmarSenha(); }}
+              />
+            ) : (
+              <View style={[styles.senhaInput, erroSenha && styles.senhaInputErro]}>
+                <Text style={{ color: '#fff' }}>{senhaDigitada}</Text>
+              </View>
+            )}
+            {erroSenha && (
+              <Text style={styles.erroSenha}>❌ Senha incorreta. Tente novamente.</Text>
+            )}
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.modalBtnSalvar} onPress={handleConfirmarSenha}>
+                <Text style={styles.modalBtnSalvarText}>Confirmar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalBtnCancelar} onPress={() => { setModalSenhaVisible(false); setSenhaDigitada(''); setErroSenha(false); }}>
+                <Text style={styles.modalBtnCancelarText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal editar */}
       <Modal visible={modalEditVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -187,6 +265,7 @@ export default function ListaScreen({ navegar }: Props) {
         </View>
       </Modal>
 
+      {/* Modal substituição */}
       <Modal visible={modalSubstVisible} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
@@ -224,12 +303,7 @@ export default function ListaScreen({ navegar }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#050d1a' },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', backgroundColor: '#071020',
-    paddingHorizontal: 16, paddingTop: 48, paddingBottom: 12,
-    borderBottomWidth: 2, borderBottomColor: '#f5c000',
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#071020', paddingHorizontal: 16, paddingTop: 48, paddingBottom: 12, borderBottomWidth: 2, borderBottomColor: '#f5c000' },
   headerTitle: { color: '#f5c000', fontSize: 18, fontWeight: 'bold', letterSpacing: 1 },
   btnPelada: { backgroundColor: '#f5c000', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   btnPeladaText: { fontSize: 20 },
@@ -265,6 +339,10 @@ const styles = StyleSheet.create({
   modalBox: { backgroundColor: '#0c1a35', borderRadius: 16, padding: 24, width: '85%', borderWidth: 1, borderColor: '#f5c000' },
   modalTitle: { color: '#f5c000', fontWeight: 'bold', fontSize: 16, marginBottom: 4 },
   modalSubtitle: { color: '#3a5070', fontSize: 13, marginBottom: 12 },
+  // ✅ estilos senha
+  senhaInput: { borderWidth: 1, borderColor: '#1a3a6e', borderRadius: 8, padding: 12, marginBottom: 8, backgroundColor: '#050d1a' },
+  senhaInputErro: { borderColor: '#ef4444' },
+  erroSenha: { color: '#ef4444', fontSize: 13, marginBottom: 12, textAlign: 'center' },
   modalBtns: { flexDirection: 'row', gap: 12 },
   modalBtnSalvar: { flex: 1, backgroundColor: '#0066ff', borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   modalBtnSalvarText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },

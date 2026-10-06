@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Jogador, Time, RankingJogador, RankingTime } from '../types';
 
-const MAX_SNAPSHOTS = 5; // ✅ limite de desfazer
+const MAX_SNAPSHOTS = 5;
 
 interface StoreState {
   jogadores: Jogador[];
@@ -12,12 +12,13 @@ interface StoreState {
   timeEmQuadra2: Time | null;
   rankingJogadores: RankingJogador[];
   rankingTimes: RankingTime[];
-  historicoSnapshots: Partial<StoreState>[]; // ✅ array de snapshots
+  historicoSnapshots: Partial<StoreState>[];
+  senhaAdmin: string | null; // ✅ senha do organizador
 
   adicionarJogador: (nome: string) => void;
   editarJogador: (id: string, novoNome: string) => void;
   removerJogador: (id: string) => void;
-  iniciarPelada: (jogadoresPorTime: number) => void;
+  iniciarPelada: (jogadoresPorTime: number, senha: string) => void; // ✅ recebe senha
   remontarTimes: (jogadoresPorTime: number) => void;
   registrarVitoria: (timeVencedorId: string) => void;
   desfazerUltimaVitoria: () => void;
@@ -25,6 +26,7 @@ interface StoreState {
   moverJogadorParaFila: (timeId: string, jogadorId: string) => void;
   moverJogadorParaFilaComSubstituto: (timeId: string, jogadorId: string) => void;
   encerrarPelada: () => void;
+  validarSenha: (senha: string) => boolean; // ✅ valida senha
 }
 
 function gerarId(): string {
@@ -38,7 +40,7 @@ function salvar(state: Partial<StoreState>) {
     const { adicionarJogador, editarJogador, removerJogador,
       iniciarPelada, remontarTimes, registrarVitoria, substituirJogador,
       moverJogadorParaFila, moverJogadorParaFilaComSubstituto,
-      encerrarPelada, desfazerUltimaVitoria, ...dados } = novo as any;
+      encerrarPelada, desfazerUltimaVitoria, validarSenha, ...dados } = novo as any;
     localStorage.setItem('matchpoint-storage', JSON.stringify(dados));
   } catch (e) { }
 }
@@ -120,7 +122,14 @@ export const useStore = create<StoreState>((set, get) => ({
   timeEmQuadra2: dadosSalvos.timeEmQuadra2 || null,
   rankingJogadores: dadosSalvos.rankingJogadores || [],
   rankingTimes: dadosSalvos.rankingTimes || [],
-  historicoSnapshots: dadosSalvos.historicoSnapshots || [], // ✅
+  historicoSnapshots: dadosSalvos.historicoSnapshots || [],
+  senhaAdmin: dadosSalvos.senhaAdmin || null, // ✅
+
+  // ✅ valida senha
+  validarSenha: (senha) => {
+    const { senhaAdmin } = get();
+    return senhaAdmin === senha;
+  },
 
   adicionarJogador: (nome) => {
     const novoJogador: Jogador = { id: gerarId(), nome, vitorias: 0 };
@@ -221,14 +230,14 @@ export const useStore = create<StoreState>((set, get) => ({
         timeEmQuadra1: s.timeEmQuadra1,
         timeEmQuadra2: s.timeEmQuadra2,
         fila: filaFinal,
-        historicoSnapshots: [], // ✅ limpa histórico ao remover jogador
+        historicoSnapshots: [],
       };
       salvar(newState);
       return newState;
     });
   },
 
-  iniciarPelada: (jogadoresPorTime) => {
+  iniciarPelada: (jogadoresPorTime, senha) => {
     const { jogadores } = get();
     const times: Time[] = [];
     let contador = 1;
@@ -251,7 +260,8 @@ export const useStore = create<StoreState>((set, get) => ({
       fila: times.slice(2),
       rankingJogadores,
       rankingTimes: [] as RankingTime[],
-      historicoSnapshots: [], // ✅ limpa histórico ao iniciar
+      historicoSnapshots: [],
+      senhaAdmin: senha, // ✅ salva senha
     };
     salvar(newState);
     set(newState);
@@ -278,7 +288,7 @@ export const useStore = create<StoreState>((set, get) => ({
       fila: times.slice(2),
       rankingTimes: [] as RankingTime[],
       rankingJogadores,
-      historicoSnapshots: [], // ✅ limpa histórico ao remontar
+      historicoSnapshots: [],
     };
     salvar(newState);
     set(newState);
@@ -288,19 +298,15 @@ export const useStore = create<StoreState>((set, get) => ({
     set((s) => {
       if (!s.timeEmQuadra1 || !s.timeEmQuadra2) return s;
 
-      // ✅ Empilha snapshot no histórico, limitando a MAX_SNAPSHOTS
       const novoSnapshot = {
         timeEmQuadra1: s.timeEmQuadra1,
         timeEmQuadra2: s.timeEmQuadra2,
         fila: s.fila,
         rankingJogadores: s.rankingJogadores,
         rankingTimes: s.rankingTimes,
-        jogadores: s.jogadores, // ✅ inclui jogadores no snapshot
+        jogadores: s.jogadores,
       };
-      const historicoSnapshots = [
-        novoSnapshot,
-        ...s.historicoSnapshots,
-      ].slice(0, MAX_SNAPSHOTS);
+      const historicoSnapshots = [novoSnapshot, ...s.historicoSnapshots].slice(0, MAX_SNAPSHOTS);
 
       const t1 = s.timeEmQuadra1;
       const t2 = s.timeEmQuadra2;
@@ -325,7 +331,6 @@ export const useStore = create<StoreState>((set, get) => ({
       const timeCongeladoEsperando = filaOriginal[0]?.congelado ? filaOriginal[0] : null;
       const filaSemCongelado = filaOriginal.filter(t => !t.congelado);
 
-      // ✅ só congela se houver 4 times completos
       const timesCompletos = [t1, t2, ...filaOriginal].filter(
         t => t.jogadores.length >= s.jogadoresPorTime
       ).length;
@@ -341,10 +346,7 @@ export const useStore = create<StoreState>((set, get) => ({
         const { perdedorFinal, filaFinal } = completarTimeIncompleto(perdedor, filaRestante, s.jogadoresPorTime);
         proximoT1 = filaSemCongelado[0] ? paraQuadra(filaSemCongelado[0]) : null;
         proximoT2 = filaSemCongelado[1] ? paraQuadra(filaSemCongelado[1]) : null;
-        filaAtualizada = [
-          timeCongelado, ...filaFinal,
-          ...(perdedorFinal.jogadores.length > 0 ? [perdedorFinal] : []),
-        ];
+        filaAtualizada = [timeCongelado, ...filaFinal, ...(perdedorFinal.jogadores.length > 0 ? [perdedorFinal] : [])];
       } else if (timeCongeladoEsperando) {
         const { perdedorFinal, filaFinal } = completarTimeIncompleto(perdedor, filaSemCongelado, s.jogadoresPorTime);
         filaAtualizada = [...filaFinal, ...(perdedorFinal.jogadores.length > 0 ? [perdedorFinal] : [])];
@@ -354,9 +356,7 @@ export const useStore = create<StoreState>((set, get) => ({
         const { perdedorFinal, filaFinal } = completarTimeIncompleto(perdedor, filaSemCongelado, s.jogadoresPorTime);
         let filaComTodos = [...filaFinal];
         if (perdedorFinal.jogadores.length > 0) filaComTodos.push(perdedorFinal);
-        const idxCompleto = filaComTodos.findIndex(
-          t => !t.congelado && t.jogadores.length >= s.jogadoresPorTime
-        );
+        const idxCompleto = filaComTodos.findIndex(t => !t.congelado && t.jogadores.length >= s.jogadoresPorTime);
         if (idxCompleto >= 0) {
           proximoT2 = paraQuadra(filaComTodos[idxCompleto]);
           filaComTodos = filaComTodos.filter((_, i) => i !== idxCompleto);
@@ -371,22 +371,18 @@ export const useStore = create<StoreState>((set, get) => ({
         fila: filaAtualizada,
         rankingJogadores,
         rankingTimes,
-        historicoSnapshots, // ✅
+        historicoSnapshots,
       };
       salvar(newState);
       return newState;
     });
   },
 
-  // ✅ Desfaz retirando o snapshot mais recente do histórico
   desfazerUltimaVitoria: () => {
     set((s) => {
       if (s.historicoSnapshots.length === 0) return s;
       const [ultimo, ...restante] = s.historicoSnapshots;
-      const newState = {
-        ...ultimo,
-        historicoSnapshots: restante,
-      };
+      const newState = { ...ultimo, historicoSnapshots: restante };
       salvar(newState);
       return newState;
     });
@@ -398,10 +394,7 @@ export const useStore = create<StoreState>((set, get) => ({
       if (!jogadorEntra) return s;
       const atualizarTime = (t: Time | null): Time | null => {
         if (!t || t.id !== timeId) return t;
-        return {
-          ...t, id: gerarId(), vitorias: 0, vitoriasSeguidas: 0, congelado: t.congelado,
-          jogadores: t.jogadores.map((j) => j.id === jogadorSaiId ? jogadorEntra : j),
-        };
+        return { ...t, id: gerarId(), vitorias: 0, vitoriasSeguidas: 0, congelado: t.congelado, jogadores: t.jogadores.map((j) => j.id === jogadorSaiId ? jogadorEntra : j) };
       };
       const newState = {
         timeEmQuadra1: atualizarTime(s.timeEmQuadra1),
@@ -419,15 +412,9 @@ export const useStore = create<StoreState>((set, get) => ({
       if (!jogador) return s;
       const removerDoTime = (t: Time | null): Time | null => {
         if (!t || t.id !== timeId) return t;
-        return {
-          ...t, id: gerarId(), vitorias: 0, vitoriasSeguidas: 0, congelado: false,
-          jogadores: t.jogadores.filter((j) => j.id !== jogadorId),
-        };
+        return { ...t, id: gerarId(), vitorias: 0, vitoriasSeguidas: 0, congelado: false, jogadores: t.jogadores.filter((j) => j.id !== jogadorId) };
       };
-      const timeAvulso: Time = {
-        id: gerarId(), numero: s.fila.length + 3,
-        jogadores: [jogador], vitorias: 0, vitoriasSeguidas: 0, congelado: false,
-      };
+      const timeAvulso: Time = { id: gerarId(), numero: s.fila.length + 3, jogadores: [jogador], vitorias: 0, vitoriasSeguidas: 0, congelado: false };
       const newState = {
         timeEmQuadra1: removerDoTime(s.timeEmQuadra1),
         timeEmQuadra2: removerDoTime(s.timeEmQuadra2),
@@ -449,15 +436,10 @@ export const useStore = create<StoreState>((set, get) => ({
       if (!jogadorSai) return s;
       const atualizarTime = (t: Time | null): Time | null => {
         if (!t || t.id !== timeId) return t;
-        return {
-          ...t, id: gerarId(), vitorias: 0, vitoriasSeguidas: 0, congelado: false,
-          jogadores: t.jogadores.map((j) => j.id === jogadorId ? substituto : j),
-        };
+        return { ...t, id: gerarId(), vitorias: 0, vitoriasSeguidas: 0, congelado: false, jogadores: t.jogadores.map((j) => j.id === jogadorId ? substituto : j) };
       };
       const todosJogadores: Jogador[] = [];
-      filaSemCongelado.forEach(t => {
-        t.jogadores.forEach(j => { if (j.id !== substituto.id) todosJogadores.push(j); });
-      });
+      filaSemCongelado.forEach(t => { t.jogadores.forEach(j => { if (j.id !== substituto.id) todosJogadores.push(j); }); });
       todosJogadores.push(jogadorSai);
       const novaFila: Time[] = [];
       for (let i = 0; i < filaSemCongelado.length; i++) {
@@ -466,15 +448,8 @@ export const useStore = create<StoreState>((set, get) => ({
       }
       const sobras = todosJogadores.slice(filaSemCongelado.length * s.jogadoresPorTime);
       if (sobras.length > 0) {
-        const proximoNumero = Math.max(
-          ...novaFila.map(t => t.numero),
-          s.timeEmQuadra1?.numero || 0,
-          s.timeEmQuadra2?.numero || 0,
-        ) + 1;
-        novaFila.push({
-          id: gerarId(), numero: proximoNumero,
-          jogadores: sobras, vitorias: 0, vitoriasSeguidas: 0, congelado: false,
-        });
+        const proximoNumero = Math.max(...novaFila.map(t => t.numero), s.timeEmQuadra1?.numero || 0, s.timeEmQuadra2?.numero || 0) + 1;
+        novaFila.push({ id: gerarId(), numero: proximoNumero, jogadores: sobras, vitorias: 0, vitoriasSeguidas: 0, congelado: false });
       }
       const filaFinal = [...filaCongelado, ...novaFila];
       const newState = {
@@ -497,7 +472,8 @@ export const useStore = create<StoreState>((set, get) => ({
       jogadores: [] as Jogador[],
       rankingJogadores: [] as RankingJogador[],
       rankingTimes: [] as RankingTime[],
-      historicoSnapshots: [], // ✅
+      historicoSnapshots: [],
+      senhaAdmin: null, // ✅ apaga senha ao encerrar
     };
     salvar(newState);
     set(newState);
