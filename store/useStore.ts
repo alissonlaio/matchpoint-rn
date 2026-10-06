@@ -216,7 +216,13 @@ export const useStore = create<StoreState>((set, get) => ({
       }
 
       const filaFinal = [...filaCongelado, ...novaFila];
-      const newState = { jogadores, timeEmQuadra1: s.timeEmQuadra1, timeEmQuadra2: s.timeEmQuadra2, fila: filaFinal };
+      const newState = {
+        jogadores,
+        timeEmQuadra1: s.timeEmQuadra1,
+        timeEmQuadra2: s.timeEmQuadra2,
+        fila: filaFinal,
+        historicoSnapshots: [], // ✅ limpa histórico ao remover jogador
+      };
       salvar(newState);
       return newState;
     });
