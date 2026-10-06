@@ -26,6 +26,7 @@ jobs:
         run: |
           sed -i 's|href="/favicon.ico"|href="/matchpoint-rn/favicon.ico"|g' dist/index.html
           sed -i 's|src="/_expo/|src="/matchpoint-rn/_expo/|g' dist/index.html
+          sed -i 's|</head>|<link rel="apple-touch-icon" href="/matchpoint-rn/assets/assets/logo.944335ee8bb4a02c618d7a423f62dd28.png" /></head>|g' dist/index.html
 
       - name: Copy assets
         run: |
