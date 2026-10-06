@@ -28,7 +28,9 @@ jobs:
           sed -i 's|src="/_expo/|src="/matchpoint-rn/_expo/|g' dist/index.html
 
       - name: Copy assets
-        run: cp -r assets dist/assets
+        run: |
+          mkdir -p dist/assets/assets
+          cp assets/logo.png dist/assets/assets/logo.png
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
